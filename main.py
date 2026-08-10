@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from core.exceptions import PostNotFound, UserNotFound, NotAuthorized
+from database.database import create_tables
 from middleware.logging import log_request
 from middleware.request_id import add_request_id_to_header
 
@@ -45,21 +46,19 @@ def build_error_response(request: Request, status_code: int, message: str):
 app = FastAPI()
 
 
+@app.on_event("startup")
+def initialize_database() -> None:
+    create_tables()
+
+
 # Which frontend origins are allowed to call this API from a browser.
 # Read from an env var (comma-separated) so you can add your real
 # Vercel/Netlify URL later without touching code again.
 # FRONTEND_ORIGINS example: "https://instacore.vercel.app,http://localhost:5500"
-raw_origins = os.getenv("FRONTEND_ORIGINS", "")
-allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+raw_origins = os.getenv("FRONTEND_ORIGINS") or ""
+allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()] or ["http://localhost:5500","http://127.0.0.1:5500","http://localhost:3000"]
 
-# Fallback so local development (opening the HTML with Live Server, etc.)
-# keeps working even if the env var isn't set yet.
-if not allowed_origins:
-    allowed_origins = [
-        "http://localhost:5500",
-        "http://127.0.0.1:5500",
-        "http://localhost:3000",
-    ]
+
 
 app.add_middleware(
     CORSMiddleware,

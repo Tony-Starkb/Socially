@@ -13,14 +13,7 @@ from fastapi import Request
 async def add_request_id_to_header(request: Request, call_next):
     
     """First we check if the incoming request already have a request id or not"""
-    request_id = request.headers.get("X-Request-ID")
-    
-    if not request_id:
-        
-        #if the request doe not have a request id then we are going to generate a new one and 
-        #add it to the request header
-        
-        request_id = str(uuid.uuid4())
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
 
     request.state.request_id = request_id    
     response = await call_next(request)

@@ -38,6 +38,7 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
         
 def create_tables() -> None:
+    from database import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
     
     
