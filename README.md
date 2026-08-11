@@ -43,6 +43,10 @@ Not a tutorial project. Every design decision — from composite primary keys to
 ### 📝 Posts
 
 - Full CRUD: create, read, update, delete
+- Authentication required for feed access and post operations
+- Media upload step with Cloudinary integration: `POST /api/v1/posts/upload-media` returns an `image_url` before creating the post
+- Uses Cloudinary as the CDN/media storage backend so the app stores only secure image URLs, not raw files
+- Commenting support: add comments to posts and delete comments cleanly
 - Ownership enforcement — users can only edit or delete their own posts (`403` otherwise)
 - Like / unlike system using a composite primary key (`post_id`, `user_id`) on the `post_likes` table — a user cannot like the same post twice, enforced by the schema itself
 - Soft-delete pattern via `is_deleted` flag — preserves referential integrity instead of hard-deleting rows
@@ -151,13 +155,18 @@ InstaCore/
 ├── core/
 │   └── exceptions.py            # Custom exception classes
 │
+├── config/
+│   └── cloudinaryConfig.py      # Cloudinary media upload helpers
+│
 ├── alembic/                      # Database migrations
 ├── docs/
 │   ├── data-model.md             # Full ER diagram, schema design, indexing rationale
 │   ├── erd-diagram.png
 │   └── manual-api-testing.md     # Endpoint test cases
 ├── tests/
-│   └── test_api.py               # Automated API test suite
+│   ├── async_test.py
+│   ├── test_api.py               # Automated API test suite
+│   └── test_database_init.py
 └── docker-compose.yml             # PostgreSQL container
 ```
 
@@ -182,7 +191,7 @@ Full entity-relationship diagram and indexing rationale documented in [`docs/dat
 ### Auth
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/v1/auth/register` | Create account |
+| POST | `/api/v1/auth/registration` | Create account |
 | POST | `/api/v1/auth/login` | Login — returns access token, sets refresh cookie |
 | POST | `/api/v1/auth/refresh` | Rotate refresh token, issue new access token |
 
@@ -199,12 +208,16 @@ Full entity-relationship diagram and indexing rationale documented in [`docs/dat
 ### Posts
 | Method | Endpoint | Description |
 |---|---|---|
+| GET | `/api/v1/posts` | Get all posts (authenticated feed) |
 | GET | `/api/v1/posts/{id}` | Get post |
+| POST | `/api/v1/posts/upload-media` | Upload media to Cloudinary before creating a post |
 | POST | `/api/v1/posts/` | Create post |
 | PATCH | `/api/v1/posts/{id}` | Update own post |
 | DELETE | `/api/v1/posts/{id}` | Delete own post |
 | POST | `/api/v1/posts/{id}/like` | Like post |
 | DELETE | `/api/v1/posts/{id}/like` | Unlike post |
+| POST | `/api/v1/posts/{id}/comment` | Add a comment to a post |
+| DELETE | `/api/v1/posts/{post_id}/comments/{comment_id}` | Delete a comment |
 
 ### Admin / Moderation
 | Method | Endpoint | Description | Required Role |
@@ -212,6 +225,7 @@ Full entity-relationship diagram and indexing rationale documented in [`docs/dat
 | PUT | `/api/v1/admin/users/{user_id}/role` | Change user role | admin |
 | DELETE | `/api/v1/admin/users/{user_id}` | Ban user | admin |
 | DELETE | `/api/v1/moderate/posts/{id}` | Delete any post | admin, moderator |
+| DELETE | `/api/v1/moderate/posts/{id}/comments/{comment_id}` | Delete any comment | admin, moderator |
 | GET | `/api/v1/moderate/{user_id}` | View any profile | admin, moderator |
 
 ### System
