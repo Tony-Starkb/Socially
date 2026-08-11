@@ -1,4 +1,5 @@
 from typing import Annotated
+import uuid
 
 from fastapi import APIRouter, Depends, Request, Response, status, File, UploadFile
 from fastapi.exceptions import HTTPException
@@ -10,6 +11,7 @@ from core.exceptions import PostNotFound
 from services.dependencies import get_current_user, get_db
 from database.crud import get_comment_by_id ,delete_comment_on_post as crud_delete_comment_on_post, comment_on_post as crud_comment_on_post, get_all_posts as crud_get_all_posts, add_post as crud_add_post, delete_post as crud_delete_post, get_post_by_id as crud_get_post_by_id, update_post as crud_update_post, like_post as crud_like_post, unlike_post as crud_unlike_post
 
+from config.cloudinaryConfig import postMedia, fetchMedia
 
 posts_router = APIRouter(prefix = "/api/v1/posts", tags = ["posts"])
 
@@ -25,11 +27,59 @@ def get_all_posts(
 
 @posts_router.get("/{id}", status_code = status.HTTP_200_OK, response_model=PostResponse)
 def get_post_by_id(id: str, request: Request, db: Session = Depends(get_db)):
-	db_post = crud_get_post_by_id(db, id)
-	if db_post is None:
-		raise PostNotFound(id)
-	return db_post
+    db_post = crud_get_post_by_id(db, id)
+    if db_post is None:
+        raise PostNotFound(id)
 
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "id": db_post.id,
+            "username": db_post.username,
+            "caption": db_post.caption,
+            "image_url": db_post.image_url,
+            "like_count": db_post.like_count,
+            "comment_count": db_post.comment_count,
+            "created_at": db_post.created_at.isoformat(),
+            "updated_at": db_post.updated_at.isoformat() if db_post.updated_at else None
+        }
+    )
+
+
+
+@posts_router.post("/upload-media", status_code=status.HTTP_200_OK)
+def upload_media(
+    current_user: Annotated[dict, Depends(get_current_user)],
+    file: UploadFile = File(...),
+):
+    """Step 1 of post creation: upload the image to Cloudinary and get back
+    a secure_url. The client then calls POST /api/v1/posts/ with that url
+    as the image_url field to actually create the post."""
+
+    allowed_content_types = {"image/jpeg", "image/png", "image/webp", "image/heic"}
+    if file.content_type not in allowed_content_types:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"Unsupported file type: {file.content_type}",
+        )
+
+    public_id = f"{current_user.id}_{uuid.uuid4()}"
+
+    try:
+        result = postMedia(file.file, public_id)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to upload media to Cloudinary.",
+        )
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "image_url": result["secure_url"],
+            "public_id": result["public_id"],
+        }
+    )
 
 
 @posts_router.post("/", status_code = status.HTTP_201_CREATED, response_model=PostResponse)
@@ -68,15 +118,15 @@ def update_specific_part_of_post(
     current_user: Annotated[dict, Depends(get_current_user)],
     db: Session = Depends(get_db),
 ):
-	post = crud_get_post_by_id(db, id)
-	if post is None:
-		raise PostNotFound(id)
-	if post.user_id != current_user.id:
-		raise HTTPException(status_code=403, detail="You can only update your own posts.")
-	updated_post = crud_update_post(db, id, updates)
-	if updated_post is None:
-		raise PostNotFound(id)
-	return updated_post
+    post = crud_get_post_by_id(db, id)
+    if post is None:
+        raise PostNotFound(id)
+    if post.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only update your own posts.")
+    updated_post = crud_update_post(db, id, updates)
+    if updated_post is None:
+        raise PostNotFound(id)
+    return updated_post
 
 
 """

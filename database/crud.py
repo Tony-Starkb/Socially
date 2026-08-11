@@ -13,7 +13,7 @@ from database.schemas import UserCreate, UserPublicResponse, PostResponse, PostC
 
 def get_user_by_id(db: Session, user_id: str) -> User | None:
     result = db.execute(select(User).where(User.id == user_id))
-    return result.scalar_one_or_none()
+    return result.scalar_one_or_none()  
 
 
 def get_user_by_username(db: Session, username: str) -> User | None:

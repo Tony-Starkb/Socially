@@ -12,7 +12,7 @@ from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, EmailStr
 
 class Role(str, Enum):
     user = "user"
-    moderator = "moderator"
+    moderator = "moderator"  
     admin = "admin"
 
 
@@ -20,14 +20,14 @@ class PostCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     caption: str = Field(min_length=1, max_length=2200)
-    image_url: AnyHttpUrl
+    image_url: str
 
 
 class PostUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     caption: str | None = Field(default=None, min_length=1, max_length=2200)
-    image_url: AnyHttpUrl | None = None
+    image_url: str | None = None
 
 
 class PostResponse(BaseModel):
