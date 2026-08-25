@@ -60,8 +60,7 @@ class FollowListResponse(BaseModel):
     username: str           # whose list this is
     users: list[str]        # list of usernames
     count: int
-    
-    
+
 
 class UserUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")

@@ -16,6 +16,7 @@ from routers.posts import posts_router as post_router
 from routers.users import users_router as user_router
 from routers.moderate import moderate_router
 from routers.admin import admin_router
+from routers.feeds import feeds_router
 
 
 logging.basicConfig(
@@ -96,6 +97,7 @@ app.include_router(user_router)
 app.include_router(login_router)
 app.include_router(moderate_router)
 app.include_router(admin_router)
+app.include_router(feeds_router)
 
 
 @app.exception_handler(PostNotFound)

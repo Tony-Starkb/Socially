@@ -203,6 +203,16 @@ def get_user_posts(db: Session, username: str) -> list[Post]:
     )
     return list(result.scalars().all())
 
+def get_user_posts_id(db: Session, user_id: str) -> list[Post]:
+    result = db.execute(
+        select(Post).where(
+            Post.user_id == user_id,
+            Post.is_deleted == False
+        )
+    )
+    
+    return list(result.scalars().all())
+
 
 def add_post(db: Session, post: PostCreate, user_id: str, username: str) -> Post:
     db_post = Post(
@@ -393,3 +403,20 @@ def delete_all_user_tokens(db: Session, user_id: str) -> int:
     result = db.execute(delete(Auth).where(Auth.user_id == user_id))
     db.commit()
     return int(result.rowcount or 0)
+
+
+
+def get_user_following(db: Session, username: str) -> dict:
+    user = get_user_by_username(db, username)
+    user_id = user.id
+
+    result = db.execute(
+        select(UserFollow).where(UserFollow.follower_id == user_id)
+    )
+    following = list(result.scalars().all())
+
+    return {
+        "username": username,
+        "users": [follow.following_id for follow in following],
+        "count": len(following),
+    }
