@@ -1,4 +1,4 @@
-# InstaCore
+# Socially
 
 **A production-style Instagram backend clone built with FastAPI.**
 
