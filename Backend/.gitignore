@@ -1,0 +1,14 @@
+.venv
+__pycache__/
+* .pyc
+posts.json
+users.json
+app.log
+.env
+user.txt
+refresh_token.json
+permission.json
+role_permission.json
+roles.json
+docker-compose.yml
+tests/claudinary test/.env

@@ -1,0 +1,54 @@
+"""
+In this module, we define a middleware that will logging the request for each and 
+everyincoming HTTP request and will log these as mentioned: method, path, status code, header. 
+This logging will be used for debugging and tracing purposes throughout the 
+application. The middleware will log the request details before processing the request 
+and log the response details after processing the request. This will help in 
+identifying the issues and debugging the application effectively.
+
+"""
+
+
+import time
+import logging
+from fastapi import Request, Response
+
+
+logger = logging.getLogger(__name__)
+
+
+## function to get the IP address of client
+async def get_client_ip(request: Request):
+    # Try common headers first
+    x_forwarded_for = request.headers.get("X-Forwarded-For")
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(",")[0]  # First IP is the client
+    else:
+        ip = request.headers.get("X-Real-IP") or request.client.host
+    return {"client_ip": ip}
+
+
+async def log_request(request: Request, call_next):
+    # Before call_next: start timer
+    start_time = time.perf_counter()
+    # request.state.request_id is already available
+    
+    response = await call_next(request)
+    
+    # After call_next: stop timer
+    end_time = time.perf_counter()
+    duration_ms = (end_time - start_time) * 1000
+    
+    # Read status_code
+    status_code = response.status_code
+    
+    # Log required information
+    method = request.method
+    path = request.url.path
+    client_ip = await get_client_ip(request)
+    request_id = getattr(request.state, 'request_id', 'unknown')
+    logger.info(f"req_id={request_id} | {client_ip['client_ip']} | {method} {path} | {status_code} | {int(duration_ms)}ms")
+    
+    return response
+
+
