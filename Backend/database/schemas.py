@@ -114,4 +114,3 @@ class RefreshTokenCreate(BaseModel):
 
 class RefreshTokenRecord(RefreshTokenCreate):
     pass
-    

@@ -4,12 +4,28 @@ from sqlalchemy.orm import Session
 from database.schemas import UserPublicResponse, PostResponse, FollowListResponse
 from core.exceptions import UserNotFound
 from services.dependencies import get_db, get_current_user
-from database.crud import get_public_user, get_user_by_username, get_user_posts, get_user_followers as crud_get_user_followers, get_user_following, follow_a_user, unfollow_a_user
+from database.crud import get_public_user, get_user_by_username as crud_get_user_by_username, get_user_posts, get_user_followers as crud_get_user_followers, get_user_following, follow_a_user, unfollow_a_user, search_users as crud_search_users
 from typing import Annotated
 from fastapi.exceptions import HTTPException
 
 
 users_router = APIRouter(prefix = "/api/v1/users", tags = ["users"])
+
+
+@users_router.get("/search", status_code = status.HTTP_200_OK)
+def search_for_users(
+    q: str,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    if not q or not q.strip():
+        return {"query": q, "results": []}
+
+    matches = crud_search_users(db, q.strip(), current_username=current_user.username)
+    return {
+        "query": q,
+        "results": [UserPublicResponse(**m).model_dump() for m in matches],
+    }
 
 
 @users_router.get("/{username}", status_code = status.HTTP_200_OK)
@@ -23,7 +39,7 @@ def get_user_by_username(username: str, request: Request, db: Session = Depends(
 
 @users_router.get("/{username}/posts", status_code = status.HTTP_200_OK, response_model=list[PostResponse])
 def get_users_posts(username: str, request: Request, db: Session = Depends(get_db)):
-    db_user = get_user_by_username(db, username)
+    db_user = crud_get_user_by_username(db, username)
     if db_user is None:
         raise UserNotFound(username)
     
@@ -32,7 +48,7 @@ def get_users_posts(username: str, request: Request, db: Session = Depends(get_d
     
 @users_router.get("/{username}/followers", status_code=status.HTTP_200_OK)
 def get_user_followers_route(username: str, request: Request, db: Session = Depends(get_db)):
-    db_user = get_user_by_username(db, username)
+    db_user = crud_get_user_by_username(db, username)
     if db_user is None:
         raise UserNotFound(username)
     
@@ -47,7 +63,7 @@ def get_user_followers_route(username: str, request: Request, db: Session = Depe
     
 @users_router.get("/{username}/following", status_code = status.HTTP_200_OK)
 def get_user_following_route(username: str, request: Request, db: Session = Depends(get_db)):
-    db_user = get_user_by_username(db, username)
+    db_user = crud_get_user_by_username(db, username)
     if db_user is None:
         raise UserNotFound(username)
     

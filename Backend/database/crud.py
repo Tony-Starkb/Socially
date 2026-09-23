@@ -59,6 +59,37 @@ def get_public_user(db: Session, username: str) -> dict | None:
     }
 
 
+def search_users(db: Session, query: str, current_username: str | None = None, limit: int = 20) -> list[dict]:
+    """Case-insensitive substring match on username. Used by GET /users/search."""
+    stmt = select(User).where(User.username.ilike(f"%{query}%"))
+    if current_username:
+        stmt = stmt.where(User.username != current_username)
+    stmt = stmt.order_by(User.username).limit(limit)
+
+    users = db.execute(stmt).scalars().all()
+
+    results = []
+    for user in users:
+        post_count = db.execute(
+            select(func.count()).select_from(Post).where(
+                Post.user_id == user.id,
+                Post.is_deleted == False
+            )
+        ).scalar()
+        results.append({
+            "id": user.id,
+            "username": user.username,
+            "full_name": user.full_name,
+            "bio": user.bio,
+            "avatar_url": user.avatar_url,
+            "is_private": user.is_private,
+            "follower_count": user.followers_count or 0,
+            "following_count": user.following_count or 0,
+            "post_count": post_count or 0,
+        })
+    return results
+
+
 def update_user_role(db: Session, user_id: str, new_role: str) -> bool:
     db_user = get_user_by_id(db, user_id)
     if db_user is None:
@@ -338,6 +369,22 @@ def comment_on_post(db: Session, post_id: str, user_id: str, comment: str) -> tu
     db.commit()
     db.refresh(db_post)
     return "commented", db_post
+
+def all_comments_on_post(db: Session, post_id: str) -> tuple[str, list[PostComment] | None]:
+    
+    # cheak if the post exist
+    db_post = get_post_by_id(db, post_id)
+    if db_post is None:
+        return "missing", None
+    
+    result = db.execute(
+        select(PostComment).where(
+            PostComment.post_id == post_id,
+            PostComment.is_deleted == False
+        )
+    )
+    
+    return "success", list(result.scalars().all())
 
 
 def delete_comment_on_post(db: Session, comment_id: str) -> bool:

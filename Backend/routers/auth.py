@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from database.crud import save_refresh_token, get_refresh_token, delete_all_user_tokens, revoke_refresh_token, get_user_by_id, get_user_by_email, get_user_by_username, add_user
 from database.schemas import UserCreate, TokenResponse
 from services.user_input_validation import validate_password, validate_username
-from services.dependencies import authenticate_user, create_token, get_db, password_to_hash
+from services.dependencies import authenticate_user, create_token, get_db, password_to_hash, get_current_user
 
 
 load_dotenv()
@@ -227,3 +227,49 @@ def user_registration(user: UserCreate, db: Session = Depends(get_db)):
 	    },
     )
  
+
+
+@auth_router.post("/logout", status_code=status.HTTP_200_OK)
+def user_logout(
+    response: Response,
+    refresh_token: Optional[str] = Cookie(None),
+    db: Session = Depends(get_db),
+):
+    if refresh_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="token not found in cookies",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    revoke_refresh_token(db, refresh_token)
+    
+    response.delete_cookie(key="refresh_token")
+    
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={"message": "Logged out successfully."},
+    )
+    
+
+@auth_router.get("/me", status_code=status.HTTP_200_OK)
+def get_current_user_info(
+    current_user: Annotated[dict, Depends(get_current_user)],
+):
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "id": current_user.id,
+            "username": current_user.username,
+            "email": current_user.email,
+            "full_name": current_user.full_name,
+            "bio": current_user.bio,
+            "avatar_url": current_user.avatar_url,
+            "is_private": current_user.is_private,
+            "role": current_user.role,
+            "followers_count": current_user.followers_count,
+            "following_count": current_user.following_count,
+            "created_at": current_user.created_at.isoformat(),
+        },
+    )
+    

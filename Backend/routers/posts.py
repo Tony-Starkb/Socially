@@ -9,9 +9,25 @@ from sqlalchemy.orm import Session
 from database.schemas import PostCreate, PostUpdate, PostResponse
 from core.exceptions import PostNotFound
 from services.dependencies import get_current_user, get_db
-from database.crud import get_comment_by_id ,delete_comment_on_post as crud_delete_comment_on_post, comment_on_post as crud_comment_on_post, get_all_posts as crud_get_all_posts, add_post as crud_add_post, delete_post as crud_delete_post, get_post_by_id as crud_get_post_by_id, update_post as crud_update_post, like_post as crud_like_post, unlike_post as crud_unlike_post
+
+from database.crud import (get_comment_by_id as crud_get_comment_by_id,
+                           delete_comment_on_post as crud_delete_comment_on_post, 
+                           comment_on_post as crud_comment_on_post, 
+                           get_all_posts as crud_get_all_posts, 
+                           add_post as crud_add_post, 
+                           delete_post as crud_delete_post, 
+                           get_post_by_id as crud_get_post_by_id, 
+                           update_post as crud_update_post, 
+                           like_post as crud_like_post, 
+                           unlike_post as crud_unlike_post, 
+                           all_comments_on_post as crud_get_all_comments_on_post
+)
 
 from config.cloudinaryConfig import postMedia, fetchMedia
+
+
+
+
 
 posts_router = APIRouter(prefix = "/api/v1/posts", tags = ["posts"])
 
@@ -149,7 +165,22 @@ def like_post(
     if status_name == "missing":
         raise PostNotFound(id)
     if status_name == "already-liked":
-        raise HTTPException(status_code=409, detail="You have already liked this post.")
+        status_name, post = crud_unlike_post(db, id, current_user.id)
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "message": "post unliked",
+                "post": {
+                    "id": post.id,
+                    "username": post.username,
+                    "caption": post.caption,
+                    "image_url": post.image_url,
+                    "like_count": post.like_count,
+                    "comment_count": post.comment_count,
+                    "created_at": post.created_at.isoformat()
+                }
+            }
+        )
     
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -175,12 +206,12 @@ def unlike_post(
     current_user: Annotated[dict, Depends(get_current_user)],
     db: Session = Depends(get_db),
 ):
-	status_name, post = crud_unlike_post(db, id, current_user.id)
-	if status_name == "missing":
-		raise PostNotFound(id)
-	if status_name == "not-liked":
-		raise HTTPException(status_code=409, detail="You have not liked this post.")
-	return Response(status_code=status.HTTP_204_NO_CONTENT)
+    status_name, _ = crud_unlike_post(db, id, current_user.id)
+    if status_name == "missing":
+        raise PostNotFound(id)
+    if status_name == "not-liked":
+        crud_like_post(db, id, current_user.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 
@@ -246,3 +277,41 @@ def delete_comment(
     
     return Response(status_code=status.HTTP_204_NO_CONTENT)
     
+    
+@posts_router.get(
+    "/{post_id}/comments",
+    status_code=status.HTTP_200_OK,
+)
+def get_comments_for_post(
+    post_id: str,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    if post_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Post ID is required"
+        )
+        
+    status_name, post_comments = crud_get_all_comments_on_post(db, post_id)
+    if status_name == "missing":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Post not found"
+        )
+        
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "post_id": post_id,
+            "comments": [
+                {
+                    "comment_id": comment.id,
+                    "user_id": comment.user_id,
+                    "comment": comment.comment,
+                    "created_at": comment.created_at.isoformat()
+                }
+                for comment in post_comments
+            ]
+        }
+    )

@@ -232,7 +232,9 @@ class InstagramBackendAPITests(unittest.TestCase):
             f"/api/v1/posts/{post_id}/like",
             headers={"Authorization": f"Bearer {liker_token}"},
         )
-        self.assertEqual(duplicate_like["status"], 409)
+        self.assertEqual(duplicate_like["status"], 200)
+        self.assertEqual(duplicate_like["json"]["message"], "post unliked")
+        self.assertEqual(duplicate_like["json"]["post"]["like_count"], 0)
 
         unlike_response = self.request(
             "DELETE",
@@ -246,7 +248,7 @@ class InstagramBackendAPITests(unittest.TestCase):
             f"/api/v1/posts/{post_id}/like",
             headers={"Authorization": f"Bearer {liker_token}"},
         )
-        self.assertEqual(second_unlike["status"], 409)
+        self.assertEqual(second_unlike["status"], 204)
 
     def test_validation_errors_return_422_without_internal_trace(self):
         response = self.request("GET", "/api/v1/posts/abc")
