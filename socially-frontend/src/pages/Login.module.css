@@ -1,0 +1,105 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.forgotLink {
+  font-size: var(--label-sm-size);
+  line-height: var(--label-sm-line);
+  letter-spacing: var(--label-sm-tracking);
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.forgotLink:hover {
+  opacity: 0.85;
+}
+
+.successNotice {
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-input);
+  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  color: #4ade80;
+  font-size: var(--label-md-size);
+}
+
+.formError {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-input);
+  background: rgba(255, 75, 43, 0.08);
+  border: 1px solid rgba(255, 107, 87, 0.3);
+  color: var(--color-error-strong);
+  font-size: var(--label-md-size);
+}
+
+.submit {
+  height: 48px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--color-accent);
+  color: white;
+  font-size: var(--label-md-size);
+  letter-spacing: var(--label-md-tracking);
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: var(--space-xs);
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+
+.submit:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.submit:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.divider span:not(.dividerLabel) {
+  flex: 1;
+  height: 1px;
+  background: var(--color-outline);
+}
+
+.dividerLabel {
+  font-size: var(--label-sm-size);
+  letter-spacing: var(--label-sm-tracking);
+  color: var(--color-on-surface-variant);
+  text-transform: uppercase;
+}
+
+.secondaryButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--color-outline);
+  color: var(--color-on-surface);
+  text-decoration: none;
+  font-size: var(--label-md-size);
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.secondaryButton:hover {
+  background: var(--color-outline);
+}

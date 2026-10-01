@@ -1,0 +1,130 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.strengthMeter {
+  display: flex;
+  gap: var(--space-xs);
+  margin-top: 6px;
+}
+
+.strengthTrack {
+  height: 4px;
+  flex: 1;
+  border-radius: 9999px;
+  background: var(--color-outline);
+  overflow: hidden;
+}
+
+.strengthFill {
+  height: 100%;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+.strength1 {
+  background: var(--color-strength-1);
+}
+.strength2 {
+  background: var(--color-strength-2);
+}
+.strength3 {
+  background: var(--color-strength-3);
+}
+.strength4 {
+  background: var(--color-strength-4);
+}
+
+.termsRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.termsLabel {
+  font-size: var(--label-sm-size);
+  line-height: var(--label-sm-line);
+  color: var(--color-on-surface-variant);
+  cursor: pointer;
+}
+
+.termsLabel a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.termsLabel a:hover {
+  text-decoration: underline;
+}
+
+.termsError {
+  margin: -8px 0 0;
+  font-size: var(--label-sm-size);
+  color: var(--color-error-strong);
+}
+
+.formError {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-input);
+  background: rgba(255, 75, 43, 0.08);
+  border: 1px solid rgba(255, 107, 87, 0.3);
+  color: var(--color-error-strong);
+  font-size: var(--label-md-size);
+}
+
+.submit {
+  height: 44px;
+  border: none;
+  border-radius: var(--radius-input);
+  background: var(--color-accent);
+  color: white;
+  font-size: var(--label-md-size);
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: var(--space-xs);
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.submit:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loginPrompt {
+  text-align: center;
+  margin: var(--space-lg) 0 0;
+  font-size: var(--label-md-size);
+  color: var(--color-on-surface-variant);
+}
+
+.loginPrompt a {
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.loginPrompt a:hover {
+  text-decoration: underline;
+}

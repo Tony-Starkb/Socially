@@ -1,0 +1,115 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.profileRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-xl);
+}
+
+.profileInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  text-decoration: none;
+  color: inherit;
+}
+
+.avatarImg {
+  width: 48px;
+  height: 48px;
+  border-radius: 9999px;
+  object-fit: cover;
+  border: 2px solid var(--color-accent);
+  padding: 1px;
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 9999px;
+  background: var(--color-surface-container);
+  border: 2px solid var(--color-accent);
+  color: var(--color-on-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.username {
+  margin: 0;
+  font-size: var(--label-md-size);
+  color: var(--color-on-surface);
+}
+
+.subtext {
+  margin: 0;
+  font-size: var(--label-sm-size);
+  color: var(--color-on-surface-variant);
+}
+
+.logoutButton {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  font-size: var(--label-sm-size);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.logoutButton:hover {
+  opacity: 0.85;
+}
+
+.suggestionsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.suggestionsTitle {
+  margin: 0;
+  font-size: var(--label-md-size);
+  font-weight: 600;
+  color: var(--color-on-surface-variant);
+}
+
+.suggestionsEmpty {
+  font-size: var(--label-sm-size);
+  line-height: var(--label-sm-line);
+  color: var(--color-on-surface-variant);
+  background: var(--color-surface-container);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-input);
+  padding: var(--space-md);
+}
+
+.footer {
+  margin-top: var(--space-xl);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: var(--label-sm-size);
+  color: var(--color-on-surface-variant);
+  opacity: 0.75;
+}
+
+.footer a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+.copyright {
+  width: 100%;
+  margin-top: 8px;
+}
