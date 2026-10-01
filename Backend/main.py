@@ -57,7 +57,7 @@ def initialize_database() -> None:
 # Vercel/Netlify URL later without touching code again.
 # FRONTEND_ORIGINS example: "https://instacore.vercel.app,http://localhost:5500"
 raw_origins = os.getenv("FRONTEND_ORIGINS") or ""
-allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()] or ["http://localhost:5500","http://127.0.0.1:5500","http://localhost:3000"]
+allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()] or ["http://localhost:5500","http://127.0.0.1:5500","http://localhost:3000", "https://socially-rit7xz0wz-tony-starkbs-projects.vercel.app"]
 
 
 
