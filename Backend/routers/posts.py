@@ -4,8 +4,10 @@ import uuid
 from fastapi import APIRouter, Depends, Request, Response, status, File, UploadFile
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from database.models import PostLike
 from database.schemas import PostCreate, PostUpdate, PostResponse
 from core.exceptions import PostNotFound
 from services.dependencies import get_current_user, get_db
@@ -315,3 +317,24 @@ def get_comments_for_post(
             ]
         }
     )
+    
+    
+## this endpoint will help to check if the user have liked a particular post or not
+@posts_router.get("/{post_id}/like-status", status_code=status.HTTP_200_OK)
+def check_user_like_post(post_id: str, current_user: Annotated[dict, Depends(get_current_user)], db: Session = Depends(get_db)):
+    post = crud_get_post_by_id(db, post_id)
+    if post is None:
+        raise PostNotFound(post_id)
+    
+    liked = db.execute(
+        select(PostLike).where(
+            PostLike.post_id == post_id,
+            PostLike.user_id == current_user.id,
+        )
+    ).scalar_one_or_none() is not None
+    
+    return {
+        "post_id": post_id,
+        "user_id": current_user.id,
+        "like_status": liked
+    }

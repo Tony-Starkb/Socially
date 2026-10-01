@@ -23,6 +23,7 @@ ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINS = os.getenv("ACCESS_TOKEN_EXPIRE_MINS")
 REFRESH_TOKEN_EXPIRE_DAYS = os.getenv("REFRESH_TOKEN_EXPIRE_DAYS")
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "lax")
 
 
 auth_router = APIRouter(prefix = "/api/v1/auth", tags = ["auth"])
@@ -55,7 +56,7 @@ def user_login(
         value=refresh_token,
         httponly=True,
         secure=COOKIE_SECURE,
-        samesite="lax",
+        samesite=COOKIE_SAMESITE,
         max_age=int(REFRESH_TOKEN_EXPIRE_DAYS) * 24 * 60 * 60
 	)
     
@@ -154,7 +155,7 @@ def renue_refresh_token(
         value=refresh_token,
         httponly=True,
         secure=COOKIE_SECURE,
-        samesite="lax",
+        samesite=COOKIE_SAMESITE,
         max_age=int(REFRESH_TOKEN_EXPIRE_DAYS) * 24 * 60 * 60
 	)
     

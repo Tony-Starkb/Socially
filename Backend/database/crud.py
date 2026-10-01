@@ -453,7 +453,7 @@ def delete_all_user_tokens(db: Session, user_id: str) -> int:
 
 
 
-def get_user_following(db: Session, username: str) -> dict:
+def get_following_summary(db: Session, username: str) -> dict:
     user = get_user_by_username(db, username)
     user_id = user.id
 

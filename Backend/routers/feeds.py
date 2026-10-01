@@ -34,7 +34,7 @@ def home_feeds(
     db: Session = Depends(get_db),
 ):
     username = current_user.username
-    db_users = crud.get_user_following(db, username)
+    db_users = crud.get_following_summary(db, username)
 
     feed_posts = []
     for profile_id in db_users["users"]:
