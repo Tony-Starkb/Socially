@@ -12,7 +12,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from database.crud import save_refresh_token, get_refresh_token, delete_all_user_tokens, revoke_refresh_token, get_user_by_id, get_user_by_email, get_user_by_username, add_user, email_otp_verification, get_otp_record, mark_otp_used
-from database.schemas import UserCreate, TokenResponse
+from database.schemas import UserCreate, TokenResponse, VerifyEmailRequest
 from services.user_input_validation import validate_password, validate_username
 from services.dependencies import authenticate_user, create_token, get_db, password_to_hash, get_current_user
 from services.OTPGenerator import generateOTP, sendOTPEmail
@@ -38,6 +38,12 @@ def user_login(
     db: Session = Depends(get_db),
 ) -> TokenResponse:
     authenticated_user = authenticate_user(user.username, user.password, db)
+    
+    if authenticated_user.is_verified == False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Please verify your email before logging in."
+        )
     
         
     access_token_expire = timedelta(minutes=int(ACCESS_TOKEN_EXPIRE_MINS))
@@ -177,80 +183,93 @@ def renue_refresh_token(
 
 
 @auth_router.post("/registration")
-def user_registration(user: UserCreate, db: Session = Depends(get_db), background_tasks: BackgroundTasks):
-	user_username = get_user_by_username(db, user.username)
-	user_email = get_user_by_email(db, user.email)
+def user_registration(user: UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    user_username = get_user_by_username(db, user.username)
+    user_email = get_user_by_email(db, user.email)
 
-	if user_username:
-		raise HTTPException (
-			status_code = 409,
-			detail = "Username already exists."
-		)
+    if user_username:
+        raise HTTPException(
+            status_code=409,
+            detail="Username already exists."
+        )
 
-	if user_email:
-		raise HTTPException (
-			status_code = 409,
-			detail = "Email already exists."
-		)
+    if user_email:
+        raise HTTPException(
+            status_code=409,
+            detail="Email already exists."
+        )
 
-	validate_username(user.username)
-	validate_password(user.password)
+    validate_username(user.username)
+    validate_password(user.password)
 
-	hashed_password = password_to_hash(user.password)
-	now_utc = datetime.now(timezone.utc)
+    hashed_password = password_to_hash(user.password)
+    now_utc = datetime.now(timezone.utc)
 
-	new_user = {
-		"id": str(uuid.uuid4()),
-		"email": user.email,
-		"username": user.username,
-		"password_hash": hashed_password,
-		"full_name": user.full_name,
-		"bio": user.bio,
-		"avatar_url": str(user.avatar_url) if user.avatar_url else None,
-		"is_private": False,
-		"is_verified": False,
-		"role": "user",
-		"followers_count": 0,
-		"following_count": 0,
-		"created_at": now_utc
-	}
+    new_user = {
+        "id": str(uuid.uuid4()),
+        "email": user.email,
+        "username": user.username,
+        "password_hash": hashed_password,
+        "full_name": user.full_name,
+        "bio": user.bio,
+        "avatar_url": str(user.avatar_url) if user.avatar_url else None,
+        "is_private": False,
+        "is_verified": False,
+        "role": "user",
+        "followers_count": 0,
+        "following_count": 0,
+        "created_at": now_utc
+    }
 
-	created_user = add_user(db, new_user)
-    
-    # first generate the OTP and then send it to the user email
+    created_user = add_user(db, new_user)
+
+    # Generate and persist an OTP, then send it to the user's email.
     otp = generateOTP(6)
     background_tasks.add_task(sendOTPEmail, receiver_email=user.email, otp=otp)
-    # store the OTP in the database with the user_id and other details
+    """
     otp_record = {
         "id": str(uuid.uuid4()),
         "user_id": created_user.id,
         "otp": otp,
         "used": False,
         "is_expired": False,
-        "time_to_live": 300,  # OTP valid for 5 minutes
+        "time_to_live": 300,
         "created_at": now_utc
     }
-    email_otp_verification(db, otp_record)
+    """
+    email_otp_verification(db, created_user.id, otp)
 
-	return JSONResponse(
+    return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
-		    "message": "Account created successfully.",
-		    "user": {
+            "message": "Account created successfully.",
+            "user": {
                 "id": created_user.id,
                 "username": created_user.username,
                 "email": created_user.email,
             },
-	    },
+        },
     )
  
  
  
-@auth_router.get("/check-email/{otp}", status_code=status.HTTP_200_OK)
-def check_email_verification_otp(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user), otp: str = None):
-    db_otp = get_otp_record(db, current_user.id) ## here we need the user_id of the user to whom the otp is generated and stored in the database
+@auth_router.post("/check-email", status_code=status.HTTP_200_OK)
+def check_email_verification_otp(
+    data: VerifyEmailRequest,
+    db: Session = Depends(get_db) 
+):
     
-    if not db_otp or db_otp.otp != otp:
+    user = get_user_by_email(db, data.email)
+    
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+        
+    db_otp = get_otp_record(db, user.id)
+    
+    if not db_otp or db_otp.otp != data.otp:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid OTP.",
@@ -280,8 +299,8 @@ def check_email_verification_otp(db: Session = Depends(get_db), current_user: di
         )
         
     # Mark the OTP as used and update the user's verification status
-    mark_otp_used(db, db_otp.id)
-    current_user.is_verified = True
+    mark_otp_used(db, db_otp)
+    user.is_verified = True
     db.commit()
     
     return JSONResponse(

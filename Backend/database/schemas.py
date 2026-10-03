@@ -112,3 +112,6 @@ class RefreshTokenCreate(BaseModel):
     expires_at: datetime
 
 
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+    otp: str
