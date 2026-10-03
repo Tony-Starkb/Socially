@@ -112,5 +112,3 @@ class RefreshTokenCreate(BaseModel):
     expires_at: datetime
 
 
-class RefreshTokenRecord(RefreshTokenCreate):
-    pass

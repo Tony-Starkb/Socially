@@ -13,3 +13,4 @@ role_permission.json
 roles.json
 docker-compose.yml
 tests/claudinary test/.env
+test_folder/

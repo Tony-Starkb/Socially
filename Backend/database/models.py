@@ -106,3 +106,15 @@ class PostComment(Base):
     comment: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    
+    
+class OTPEmailVerification(Base):
+    __tablename__ = "otp-email_verifications"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    otp: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    time_to_live: Mapped[int] = mapped_column(Integer, nullable=False)  # in seconds
+    used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_expired: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

@@ -5,16 +5,17 @@ from typing import Annotated, Optional
 
 from dotenv import load_dotenv
 import jwt
-from fastapi import APIRouter, Depends, Response, status, Cookie
+from fastapi import APIRouter, Depends, Response, status, Cookie, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from database.crud import save_refresh_token, get_refresh_token, delete_all_user_tokens, revoke_refresh_token, get_user_by_id, get_user_by_email, get_user_by_username, add_user
+from database.crud import save_refresh_token, get_refresh_token, delete_all_user_tokens, revoke_refresh_token, get_user_by_id, get_user_by_email, get_user_by_username, add_user, email_otp_verification, get_otp_record, mark_otp_used
 from database.schemas import UserCreate, TokenResponse
 from services.user_input_validation import validate_password, validate_username
 from services.dependencies import authenticate_user, create_token, get_db, password_to_hash, get_current_user
+from services.OTPGenerator import generateOTP, sendOTPEmail
 
 
 load_dotenv()
@@ -176,7 +177,7 @@ def renue_refresh_token(
 
 
 @auth_router.post("/registration")
-def user_registration(user: UserCreate, db: Session = Depends(get_db)):
+def user_registration(user: UserCreate, db: Session = Depends(get_db), background_tasks: BackgroundTasks):
 	user_username = get_user_by_username(db, user.username)
 	user_email = get_user_by_email(db, user.email)
 
@@ -215,6 +216,21 @@ def user_registration(user: UserCreate, db: Session = Depends(get_db)):
 	}
 
 	created_user = add_user(db, new_user)
+    
+    # first generate the OTP and then send it to the user email
+    otp = generateOTP(6)
+    background_tasks.add_task(sendOTPEmail, receiver_email=user.email, otp=otp)
+    # store the OTP in the database with the user_id and other details
+    otp_record = {
+        "id": str(uuid.uuid4()),
+        "user_id": created_user.id,
+        "otp": otp,
+        "used": False,
+        "is_expired": False,
+        "time_to_live": 300,  # OTP valid for 5 minutes
+        "created_at": now_utc
+    }
+    email_otp_verification(db, otp_record)
 
 	return JSONResponse(
         status_code=status.HTTP_201_CREATED,
@@ -228,6 +244,53 @@ def user_registration(user: UserCreate, db: Session = Depends(get_db)):
 	    },
     )
  
+ 
+ 
+@auth_router.get("/check-email/{otp}", status_code=status.HTTP_200_OK)
+def check_email_verification_otp(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user), otp: str = None):
+    db_otp = get_otp_record(db, current_user.id) ## here we need the user_id of the user to whom the otp is generated and stored in the database
+    
+    if not db_otp or db_otp.otp != otp:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP.",
+        )
+    if db_otp.used:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP has already been used.",
+        )
+    if db_otp.is_expired:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP has expired.",
+        )
+    
+    # Check if the OTP has expired based on its time_to_live
+    created_at = db_otp.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    expires_at = created_at + timedelta(seconds=db_otp.time_to_live)
+    if datetime.now(timezone.utc) >= expires_at:
+        db_otp.is_expired = True
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP has expired.",
+        )
+        
+    # Mark the OTP as used and update the user's verification status
+    mark_otp_used(db, db_otp.id)
+    current_user.is_verified = True
+    db.commit()
+    
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={"message": "Email verified successfully."},
+    )
+
+
+
 
 
 @auth_router.post("/logout", status_code=status.HTTP_200_OK)
