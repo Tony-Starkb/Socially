@@ -5,6 +5,7 @@ import FormField from "../components/FormField";
 import VisibilityToggle from "../components/VisibilityToggle";
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../lib/http";
+import { savePendingVerification } from "../lib/pendingVerification";
 import styles from "./Login.module.css";
 
 export default function Login() {
@@ -16,14 +17,23 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState(null);
+  // True when the backend refused login with 403 (email not verified yet).
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const redirectTo = location.state?.from?.pathname || "/";
-  const justRegistered = location.state?.justRegistered;
+  const justVerified = location.state?.justVerified;
+
+  // The verify page needs an email. Only offer the shortcut when the user
+  // logged in with one (a username alone doesn't tell us where the OTP went).
+  const emailIdentifier = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier.trim())
+    ? identifier.trim()
+    : null;
 
   async function handleSubmit(event) {
     event.preventDefault();
     setFormError(null);
+    setNeedsVerification(false);
 
     if (!identifier.trim() || !password) {
       setFormError("Enter your email/username and password.");
@@ -37,6 +47,10 @@ export default function Login() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setFormError("Invalid email or password");
+      } else if (err instanceof ApiError && err.status === 403) {
+        // "Please verify your email before logging in." — not logged in at all.
+        setFormError(err.message);
+        setNeedsVerification(true);
       } else {
         setFormError(err.message || "Something went wrong. Try again.");
       }
@@ -48,9 +62,9 @@ export default function Login() {
   return (
     <AuthCard title="Welcome back" subtitle="Log in to InstaCore">
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
-        {justRegistered && !formError && (
+        {justVerified && !formError && (
           <p className={styles.successNotice} role="status">
-            Account created. Log in to continue.
+            Email verified. Log in to continue.
           </p>
         )}
         <FormField
@@ -90,6 +104,17 @@ export default function Login() {
             </span>
             {formError}
           </p>
+        )}
+
+        {needsVerification && emailIdentifier && (
+          <Link
+            to="/verify-email"
+            state={{ email: emailIdentifier }}
+            className={styles.verifyLink}
+            onClick={() => savePendingVerification(emailIdentifier, null)}
+          >
+            Enter your verification code
+          </Link>
         )}
 
         <button type="submit" className={styles.submit} disabled={submitting}>

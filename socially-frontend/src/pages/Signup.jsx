@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AuthCard from "../components/AuthCard";
 import FormField from "../components/FormField";
 import VisibilityToggle from "../components/VisibilityToggle";
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../lib/http";
 import { validateUsername, validatePassword, passwordStrength } from "../lib/validators";
+import { savePendingVerification } from "../lib/pendingVerification";
 import styles from "./Signup.module.css";
 
 const STRENGTH_COLORS = ["strength1", "strength2", "strength3", "strength4"];
@@ -13,6 +14,9 @@ const STRENGTH_COLORS = ["strength1", "strength2", "strength3", "strength4"];
 export default function Signup() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Set by the verify page when the OTP was rejected.
+  const otpError = location.state?.otpError;
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -54,10 +58,13 @@ export default function Signup() {
 
     setSubmitting(true);
     try {
-      await register({ username: username.trim(), email: email.trim(), password });
-      navigate("/login", {
+      const cleanEmail = email.trim();
+      await register({ username: username.trim(), email: cleanEmail, password });
+      // The backend has just emailed a 6-digit OTP — collect it next.
+      savePendingVerification(cleanEmail);
+      navigate("/verify-email", {
         replace: true,
-        state: { justRegistered: true },
+        state: { email: cleanEmail },
       });
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
@@ -155,6 +162,15 @@ export default function Signup() {
         {errors.terms && (
           <p className={styles.termsError} role="alert">
             {errors.terms}
+          </p>
+        )}
+
+        {otpError && !formError && (
+          <p className={styles.formError} role="alert">
+            <span className="material-symbols-outlined" aria-hidden="true">
+              error
+            </span>
+            {otpError}
           </p>
         )}
 

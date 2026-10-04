@@ -103,3 +103,16 @@
 .secondaryButton:hover {
   background: var(--color-outline);
 }
+
+.verifyLink {
+  align-self: flex-start;
+  margin-top: calc(var(--space-xs) * -1);
+  font-size: var(--label-md-size);
+  font-weight: 600;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.verifyLink:hover {
+  text-decoration: underline;
+}

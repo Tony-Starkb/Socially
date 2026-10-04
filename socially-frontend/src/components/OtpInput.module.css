@@ -1,0 +1,55 @@
+.row {
+  width: 100%;
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.box {
+  flex: 1;
+  min-width: 0;
+  height: 56px;
+  text-align: center;
+  font-family: var(--font-family);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-on-surface);
+  background: var(--color-surface-container);
+  border: 1px solid #3a3b3f;
+  border-radius: var(--radius-input);
+  outline: none;
+  caret-color: var(--color-accent);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.box::placeholder {
+  color: var(--color-on-surface-variant);
+}
+
+.box:focus {
+  background: var(--color-surface-container-high);
+  border-color: var(--color-accent);
+}
+
+/* Border colour already signals focus; skip the global outline ring
+   so there's no double ring (Electric Noir: no outer glow on focus). */
+.box:focus-visible {
+  outline: none;
+}
+
+.box:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.invalid {
+  border-color: var(--color-error-strong);
+}
+
+@media (min-width: 480px) {
+  .row {
+    gap: 10px;
+  }
+  .box {
+    height: 64px;
+  }
+}

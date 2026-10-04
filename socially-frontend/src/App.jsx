@@ -3,6 +3,7 @@ import { AuthProvider } from "./context/AuthContext";
 import RequireAuth from "./routes/RequireAuth";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import VerifyEmail from "./pages/VerifyEmail";
 import Feed from "./pages/Feed";
 import PostDetail from "./pages/PostDetail";
 import CreatePost from "./pages/CreatePost";
@@ -24,6 +25,7 @@ function AppRoutes() {
       <Routes location={backgroundLocation || location}>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route
           path="/"
           element={

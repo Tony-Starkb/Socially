@@ -45,3 +45,15 @@ export async function register({ username, email, password, fullName, bio, avata
     },
   });
 }
+
+// POST /auth/check-email — verifies the 6-digit OTP that /auth/registration
+// emailed to the user. 200 -> account is now verified (can log in).
+// 400 -> "Invalid OTP." / "OTP has expired." / "OTP has already been used."
+// 404 -> "User not found".
+export function verifyEmail({ email, otp }) {
+  return request("/auth/check-email", {
+    method: "POST",
+    auth: false,
+    body: { email, otp },
+  });
+}
