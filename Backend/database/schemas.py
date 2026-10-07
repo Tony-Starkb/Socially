@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, EmailStr
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, EmailStr, model_validator
 
 
 
@@ -20,7 +20,18 @@ class PostCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     caption: str = Field(min_length=1, max_length=2200)
-    image_url: str
+    image_url: str | None = None
+    media_urls: list[str] | None = Field(default=None, min_length=1)
+
+    @model_validator(mode="after")
+    def require_media(self):
+        if self.media_urls is None:
+            if self.image_url is None:
+                raise ValueError("Provide at least one media URL.")
+            self.media_urls = [self.image_url]
+        elif self.image_url is None:
+            self.image_url = self.media_urls[0]
+        return self
 
 
 class PostUpdate(BaseModel):
@@ -28,6 +39,7 @@ class PostUpdate(BaseModel):
 
     caption: str | None = Field(default=None, min_length=1, max_length=2200)
     image_url: str | None = None
+    media_urls: list[str] | None = Field(default=None, min_length=1)
 
 
 class PostResponse(BaseModel):
@@ -36,6 +48,7 @@ class PostResponse(BaseModel):
     username: str
     caption: str
     image_url: AnyHttpUrl
+    media_urls: list[AnyHttpUrl]
     like_count: int
     comment_count: int
     created_at: datetime

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { getPostById, getPostComments, deleteComment, updatePost } from "../api/posts";
+import MediaCarousel from "../components/MediaCarousel";
 import { useAuth } from "../context/AuthContext";
 import { useUserProfile } from "../hooks/useUserProfile";
+import { getPostMediaUrls } from "../lib/media";
 import { usePostInteractions } from "../hooks/usePostInteractions";
 import { relativeTime } from "../lib/time";
 import styles from "./PostDetail.module.css";
@@ -138,7 +140,7 @@ function PostDetailContent({ post, currentUser, onDeleted }) {
   return (
     <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
       <div className={styles.imagePane}>
-        <img src={post.image_url} alt={caption} className={styles.image} />
+        <MediaCarousel mediaUrls={getPostMediaUrls(post)} alt={caption} variant="detail" />
       </div>
 
       <div className={styles.infoPane}>

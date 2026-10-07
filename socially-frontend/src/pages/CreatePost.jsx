@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { uploadMedia, createPost } from "../api/posts";
 import styles from "./CreatePost.module.css";
 
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "video/mp4"];
 // Client-side only — the backend doesn't enforce a size limit, this
 // just avoids someone accidentally trying to upload a huge file.
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -14,8 +14,7 @@ export default function CreatePost({ asModal, onCreated }) {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [file, setFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const [mediaItems, setMediaItems] = useState([]);
   const [caption, setCaption] = useState("");
   const [location, setLocation] = useState("");
   const [dragActive, setDragActive] = useState(false);
@@ -23,12 +22,14 @@ export default function CreatePost({ asModal, onCreated }) {
   const [formError, setFormError] = useState(null);
   const [stage, setStage] = useState("idle"); // idle | uploading | creating
   const fileInputRef = useRef(null);
+  const previewUrlsRef = useRef(new Set());
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      previewUrlsRef.current.clear();
     };
-  }, [previewUrl]);
+  }, []);
 
   function close() {
     if (stage !== "idle") return; // don't let a submit-in-flight get abandoned
@@ -50,45 +51,49 @@ export default function CreatePost({ asModal, onCreated }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asModal, stage]);
 
-  function acceptFile(candidate) {
+  function addFiles(candidates) {
+    if (candidates.length === 0) return;
     setFileError(null);
-    if (!ACCEPTED_TYPES.includes(candidate.type)) {
-      setFileError("Only JPEG, PNG, WebP, or HEIC images are supported right now.");
+    const unsupported = candidates.find((candidate) => !ACCEPTED_TYPES.includes(candidate.type));
+    if (unsupported) {
+      setFileError("Only JPEG, PNG, WebP, HEIC, or MP4 files are supported.");
       return;
     }
-    if (candidate.size > MAX_BYTES) {
-      setFileError("That image is larger than 10MB — try a smaller file.");
+    const oversized = candidates.find((candidate) => candidate.size > MAX_BYTES);
+    if (oversized) {
+      setFileError("Each file must be 10MB or smaller.");
       return;
     }
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(candidate);
-    setPreviewUrl(URL.createObjectURL(candidate));
+
+    const additions = candidates.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      previewUrlsRef.current.add(previewUrl);
+      return { file, previewUrl };
+    });
+    setMediaItems((current) => [...current, ...additions]);
   }
 
   function handleInputChange(event) {
-    const candidate = event.target.files?.[0];
-    if (candidate) acceptFile(candidate);
+    addFiles(Array.from(event.target.files || []));
     event.target.value = ""; // allow re-selecting the same file later
   }
 
-  const handleDrop = useCallback((event) => {
+  function handleDrop(event) {
     event.preventDefault();
     setDragActive(false);
-    const candidate = event.dataTransfer.files?.[0];
-    if (candidate) acceptFile(candidate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewUrl]);
+    addFiles(Array.from(event.dataTransfer.files || []));
+  }
 
-  function removeFile() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(null);
-    setPreviewUrl(null);
+  function removeFile(previewUrl) {
+    URL.revokeObjectURL(previewUrl);
+    previewUrlsRef.current.delete(previewUrl);
+    setMediaItems((current) => current.filter((item) => item.previewUrl !== previewUrl));
   }
 
   async function handleShare() {
     setFormError(null);
-    if (!file) {
-      setFormError("Choose a photo to share.");
+    if (mediaItems.length === 0) {
+      setFormError("Choose a photo or video to share.");
       return;
     }
     const trimmedCaption = caption.trim();
@@ -99,22 +104,60 @@ export default function CreatePost({ asModal, onCreated }) {
 
     try {
       setStage("uploading");
-      const uploaded = await uploadMedia(file);
+      const mediaUrls = await Promise.all(
+        mediaItems.map(async ({ file }) => {
+          const uploaded = await uploadMedia(file);
+
+          const candidates = [
+            uploaded,
+            uploaded?.data,
+            uploaded?.result,
+            uploaded?.file,
+            uploaded?.media,
+            ...(Array.isArray(uploaded?.media) ? uploaded.media : []),
+            uploaded?.image,
+          ];
+
+          let url = null;
+          for (const candidate of candidates) {
+            if (typeof candidate === "string") {
+              url = candidate.trim();
+              break;
+            }
+            url = candidate?.url
+              ?? candidate?.image_url
+              ?? candidate?.media_url
+              ?? candidate?.secure_url
+              ?? candidate?.public_url
+              ?? candidate?.href;
+            if (url) break;
+          }
+
+          if (!url) throw new Error(`Upload succeeded but no media URL was returned for ${file.name}.`);
+          return url;
+        })
+      );
       setStage("creating");
-      const post = await createPost({ caption: trimmedCaption, image_url: uploaded.image_url });
+      const post = await createPost({ caption: trimmedCaption, media_urls: mediaUrls });
       onCreated?.(post);
       // A new post never appears in your own home feed — the feed only
       // shows people you follow — so there's nothing to refresh there.
       // This just returns to wherever "Create" was opened from.
       navigate(asModal ? -1 : "/", asModal ? undefined : { replace: true });
     } catch (err) {
-      setFormError(err.message || "Something went wrong sharing your post.");
+      const message = err?.status === 422
+        ? "The uploaded file was rejected by the server. Check the file type and size, then try again."
+        : typeof err?.message === "string"
+          ? err.message
+          : "Something went wrong sharing your post.";
+
+      setFormError(message);
       setStage("idle");
     }
   }
 
   const busy = stage !== "idle";
-  const shareLabel = stage === "uploading" ? "Uploading…" : stage === "creating" ? "Sharing…" : "Share";
+  const shareLabel = stage === "uploading" ? "Uploading media…" : stage === "creating" ? "Sharing…" : "Share";
 
   return (
     <div className={styles.overlay} onClick={close}>
@@ -136,7 +179,7 @@ export default function CreatePost({ asModal, onCreated }) {
             }}
             onDragLeave={() => setDragActive(false)}
             onDrop={handleDrop}
-            onClick={() => !previewUrl && fileInputRef.current?.click()}
+            onClick={() => mediaItems.length === 0 && fileInputRef.current?.click()}
             role="button"
             tabIndex={0}
           >
@@ -144,32 +187,58 @@ export default function CreatePost({ asModal, onCreated }) {
               ref={fileInputRef}
               type="file"
               accept={ACCEPTED_TYPES.join(",")}
+              multiple
               className={styles.hiddenInput}
               onChange={handleInputChange}
             />
 
-            {previewUrl ? (
-              <div className={styles.previewWrap}>
-                <img src={previewUrl} alt="Selected" className={styles.previewImage} />
+            {mediaItems.length > 0 ? (
+              <>
+                <div className={styles.previewList}>
+                  {mediaItems.map(({ file, previewUrl }) => (
+                    <div className={styles.mediaPreviewItem} key={previewUrl}>
+                      <div className={styles.previewWrap}>
+                        {file.type === "video/mp4" ? (
+                          <video src={previewUrl} className={styles.previewImage} controls playsInline />
+                        ) : (
+                          <img src={previewUrl} alt={file.name} className={styles.previewImage} />
+                        )}
+                        <button
+                          type="button"
+                          className={styles.removeButton}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            removeFile(previewUrl);
+                          }}
+                          disabled={busy}
+                          aria-label={`Remove ${file.name}`}
+                        >
+                          <span className="material-symbols-outlined">close</span>
+                        </button>
+                      </div>
+                      <span className={styles.mediaName}>{file.name}</span>
+                    </div>
+                  ))}
+                </div>
                 <button
                   type="button"
-                  className={styles.removeButton}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeFile();
+                  className={styles.addMediaButton}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    fileInputRef.current?.click();
                   }}
                   disabled={busy}
-                  aria-label="Remove photo"
                 >
-                  <span className="material-symbols-outlined">close</span>
+                  <span className="material-symbols-outlined">add</span>
+                  Add media
                 </button>
-              </div>
+              </>
             ) : (
               <>
                 <span className={`material-symbols-outlined ${styles.uploadIcon}`}>
                   add_photo_alternate
                 </span>
-                <p className={styles.uploadText}>Drag photo here or click to upload</p>
+                <p className={styles.uploadText}>Drag a photo or video here, or click to upload</p>
               </>
             )}
           </div>
@@ -228,7 +297,7 @@ export default function CreatePost({ asModal, onCreated }) {
           <button
             className={styles.shareButton}
             onClick={handleShare}
-            disabled={busy || !file || !caption.trim()}
+            disabled={busy || mediaItems.length === 0 || !caption.trim()}
           >
             {shareLabel}
           </button>

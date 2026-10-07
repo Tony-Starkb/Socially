@@ -44,8 +44,9 @@ Not a tutorial project. Every design decision — from composite primary keys to
 
 - Full CRUD: create, read, update, delete
 - Authentication required for feed access and post operations
-- Media upload step with Cloudinary integration: `POST /api/v1/posts/upload-media` returns an `image_url` before creating the post
-- Uses Cloudinary as the CDN/media storage backend so the app stores only secure image URLs, not raw files
+- Media upload step with Cloudinary integration: `POST /api/v1/posts/upload-media` accepts multiple images/videos and returns their URLs before creating the post
+- Posts store a `media_urls` list; the first URL is also returned as `image_url` for compatibility with existing clients
+- Uses Cloudinary as the CDN/media storage backend so the app stores secure media URLs, not raw files
 - Commenting support: add comments to posts and delete comments cleanly
 - Ownership enforcement — users can only edit or delete their own posts (`403` otherwise)
 - Like / unlike system using a composite primary key (`post_id`, `user_id`) on the `post_likes` table — a user cannot like the same post twice, enforced by the schema itself
@@ -210,7 +211,7 @@ Full entity-relationship diagram and indexing rationale documented in [`docs/dat
 |---|---|---|
 | GET | `/api/v1/posts` | Get all posts (authenticated feed) |
 | GET | `/api/v1/posts/{id}` | Get post |
-| POST | `/api/v1/posts/upload-media` | Upload media to Cloudinary before creating a post |
+| POST | `/api/v1/posts/upload-media` | Upload multiple images/videos to Cloudinary before creating a post |
 | POST | `/api/v1/posts/` | Create post |
 | PATCH | `/api/v1/posts/{id}` | Update own post |
 | DELETE | `/api/v1/posts/{id}` | Delete own post |

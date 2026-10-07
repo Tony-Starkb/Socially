@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { relativeTime } from "../lib/time";
 import { useUserProfile } from "../hooks/useUserProfile";
 import { usePostInteractions } from "../hooks/usePostInteractions";
+import MediaCarousel from "./MediaCarousel";
+import { getPostMediaUrls } from "../lib/media";
 import styles from "./PostCard.module.css";
 
 export default function PostCard({ post, currentUsername, onDeleted }) {
@@ -28,7 +30,6 @@ export default function PostCard({ post, currentUsername, onDeleted }) {
   const [showComposer, setShowComposer] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [imageBroken, setImageBroken] = useState(false);
   const [shareNotice, setShareNotice] = useState(false);
   const shareTimeout = useRef(null);
 
@@ -54,6 +55,7 @@ export default function PostCard({ post, currentUsername, onDeleted }) {
   }
 
   const avatarUrl = profile?.avatar_url;
+  const mediaUrls = getPostMediaUrls(post);
 
   return (
     <article className={styles.card}>
@@ -104,19 +106,25 @@ export default function PostCard({ post, currentUsername, onDeleted }) {
         )}
       </div>
 
-      <button className={styles.imageWrap} onClick={openDetail} aria-label="Open post">
-        {imageBroken ? (
-          <div className={styles.imageFallback}>Image unavailable</div>
+      <div
+        className={styles.imageWrap}
+        onClick={openDetail}
+        onKeyDown={(event) => {
+          if (event.target === event.currentTarget && ["Enter", " "].includes(event.key)) {
+            event.preventDefault();
+            openDetail();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label="Open post"
+      >
+        {mediaUrls.length > 0 ? (
+          <MediaCarousel mediaUrls={mediaUrls} alt={post.caption} variant="feed" />
         ) : (
-          <img
-            className={styles.image}
-            src={post.image_url}
-            alt={post.caption}
-            loading="lazy"
-            onError={() => setImageBroken(true)}
-          />
+          <div className={styles.imageFallback}>Media unavailable</div>
         )}
-      </button>
+      </div>
 
       <div className={styles.actions}>
         <div className={styles.actionsLeft}>

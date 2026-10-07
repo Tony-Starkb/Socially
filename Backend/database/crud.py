@@ -251,7 +251,8 @@ def add_post(db: Session, post: PostCreate, user_id: str, username: str) -> Post
         user_id=user_id,
         username=username,
         caption=post.caption,
-        image_url=str(post.image_url),
+        image_url=str(post.media_urls[0]),
+        media_urls=[str(url) for url in post.media_urls],
         like_count=0,
         comment_count=0,
         created_at=datetime.now(timezone.utc),
@@ -274,6 +275,15 @@ def update_post(db: Session, post_id: str, updates: PostUpdate) -> Post | None:
     # model_dump(exclude_unset=True) only gives fields the caller actually sent
     # so PATCH /posts/123 {"title": "new"} won't wipe out body, published, etc.
     update_data = updates.model_dump(exclude_unset=True)
+    media_urls = update_data.pop("media_urls", None)
+    image_url = update_data.pop("image_url", None)
+
+    if media_urls is not None:
+        db_post.media_urls = [str(url) for url in media_urls]
+        db_post.image_url = db_post.media_urls[0]
+    elif image_url is not None:
+        db_post.image_url = str(image_url)
+        db_post.media_urls = [str(image_url)]
 
     for field, value in update_data.items():
         setattr(db_post, field, value)

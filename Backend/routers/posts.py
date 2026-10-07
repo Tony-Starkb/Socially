@@ -1,6 +1,8 @@
 from typing import Annotated
 import uuid
 
+import asyncio
+
 from fastapi import APIRouter, Depends, Request, Response, status, File, UploadFile
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
@@ -56,6 +58,7 @@ def get_post_by_id(id: str, request: Request, db: Session = Depends(get_db)):
             "username": db_post.username,
             "caption": db_post.caption,
             "image_url": db_post.image_url,
+            "media_urls": db_post.media_urls,
             "like_count": db_post.like_count,
             "comment_count": db_post.comment_count,
             "created_at": db_post.created_at.isoformat(),
@@ -64,40 +67,68 @@ def get_post_by_id(id: str, request: Request, db: Session = Depends(get_db)):
     )
 
 
-
 @posts_router.post("/upload-media", status_code=status.HTTP_200_OK)
-def upload_media(
+async def upload_media(
     current_user: Annotated[dict, Depends(get_current_user)],
-    file: UploadFile = File(...),
+    files: Annotated[list[UploadFile] | None, File()] = None,
 ):
-    """Step 1 of post creation: upload the image to Cloudinary and get back
-    a secure_url. The client then calls POST /api/v1/posts/ with that url
-    as the image_url field to actually create the post."""
-
-    allowed_content_types = {"image/jpeg", "image/png", "image/webp", "image/heic", "video/mp4"}
-    if file.content_type not in allowed_content_types:
+    """Step 1 of post creation: upload multiple images/videos to Cloudinary 
+    concurrently and get back their secure_urls and public_ids."""
+    
+    if not files:
         raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=f"Unsupported file type: {file.content_type}",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No files provided."
         )
 
-    public_id = f"{current_user.id}_{uuid.uuid4()}"
+    # 1. Validate all files first before starting any uploads
+    allowed_content_types = {"image/jpeg", "image/png", "image/webp", "image/heic", "video/mp4"}
+    for file in files:
+        if file.content_type not in allowed_content_types:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail=f"Unsupported file type: {file.content_type}",
+            )
 
+    # 2. Define a helper worker to run your synchronous postMedia function in a thread
+    def upload_worker(file_obj, p_id, r_type):
+        # We pass file_obj.file directly, just like your original code
+        return postMedia(file_obj.file, p_id, resource_type=r_type)
+
+    # 3. Build concurrent execution tasks
+    upload_tasks = []
+    for file in files:
+        public_id = f"{current_user.id}_{uuid.uuid4()}"
+        resource_type = "video" if file.content_type == "video/mp4" else "image"
+        
+        # Schedule the blocking postMedia function to run in an external thread
+        task = asyncio.to_thread(upload_worker, file, public_id, resource_type)
+        upload_tasks.append(task)
+
+    # 4. Execute all uploads in parallel
     try:
-        result = postMedia(file.file, public_id)
-    except Exception:
+        results = await asyncio.gather(*upload_tasks)
+    except Exception as e:
+        # Log your exception here if needed
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to upload media to Cloudinary.",
         )
 
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={
+    # 5. Format and return the array of uploaded media
+    uploaded_media = [
+        {
             "image_url": result["secure_url"],
             "public_id": result["public_id"],
         }
+        for result in results
+    ]
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={"media": uploaded_media}
     )
+
 
 
 @posts_router.post("/", status_code = status.HTTP_201_CREATED, response_model=PostResponse)
@@ -177,6 +208,7 @@ def like_post(
                     "username": post.username,
                     "caption": post.caption,
                     "image_url": post.image_url,
+                    "media_urls": post.media_urls,
                     "like_count": post.like_count,
                     "comment_count": post.comment_count,
                     "created_at": post.created_at.isoformat()
@@ -193,6 +225,7 @@ def like_post(
                 "username": post.username,
                 "caption": post.caption,
                 "image_url": post.image_url,
+                "media_urls": post.media_urls,
                 "like_count": post.like_count,
                 "comment_count": post.comment_count,
                 "created_at": post.created_at.isoformat()

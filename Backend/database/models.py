@@ -61,6 +61,7 @@ class Post(Base):
     username: Mapped[str] = mapped_column(String(50), nullable=False)
     caption: Mapped[str] = mapped_column(Text, nullable=False)
     image_url: Mapped[str] = mapped_column(String, nullable=False)  ## as i am using cloudinary to store the media, so image_url is going to be used to store the publicID for the media 
+    media_urls: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     like_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
     comment_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

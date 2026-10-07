@@ -23,7 +23,7 @@ cloudinary.config(
 )
 
 
-def postMedia(file, publicID: str):      ## publicID = userID(who uploaded the media) + media name
+def postMedia(file, publicID: str, resource_type: str = "image"):
     """Uploads a file to Cloudinary and returns the full result dict
     (including result['secure_url'], which is what gets stored in
     Post.image_url)."""
@@ -33,6 +33,7 @@ def postMedia(file, publicID: str):      ## publicID = userID(who uploaded the m
         asset_folder = "InstaCore",
         public_id = publicID,
         overwrite = False,
+        resource_type = resource_type,
     )
     return result
     

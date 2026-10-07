@@ -38,17 +38,19 @@ export function commentOnPost(id, comment) {
   });
 }
 
-// Step 1 of post creation: upload the raw file to Cloudinary via the
-// backend, get back a secure image_url. Step 2 (createPost) uses that
-// url to actually create the post row.
+// Upload one media file to Cloudinary via the backend.
 export function uploadMedia(file) {
+  if (!(file instanceof File)) {
+    throw new Error("Select a valid image or video file before uploading.");
+  }
+
   const form = new FormData();
-  form.append("file", file);
+  form.append("files", file, file.name);
   return request("/posts/upload-media", { method: "POST", raw: form });
 }
 
-export function createPost({ caption, image_url }) {
-  return request("/posts/", { method: "POST", body: { caption, image_url } });
+export function createPost({ caption, media_urls }) {
+  return request("/posts/", { method: "POST", body: { caption, media_urls } });
 }
 
 export function getPostById(id) {

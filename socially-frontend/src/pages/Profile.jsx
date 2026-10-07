@@ -5,6 +5,7 @@ import SuggestionsPanel from "../components/SuggestionsPanel";
 import { useAuth } from "../context/AuthContext";
 import { getUserByUsername, getUserPosts } from "../api/users";
 import { useFollowState } from "../hooks/useFollowState";
+import { getPostMediaUrls, isVideoMedia } from "../lib/media";
 import styles from "./Profile.module.css";
 
 const TABS = [
@@ -199,11 +200,25 @@ export default function Profile() {
 
           {posts?.length > 0 && (
             <div className={styles.grid}>
-              {posts.map((post) => (
-                <button key={post.id} className={styles.gridItem} onClick={() => openPost(post.id)}>
-                  <img src={post.image_url} alt={post.caption} loading="lazy" />
-                </button>
-              ))}
+              {posts.map((post) => {
+                const mediaUrl = getPostMediaUrls(post)[0];
+                return (
+                  <button key={post.id} className={styles.gridItem} onClick={() => openPost(post.id)}>
+                    {isVideoMedia(mediaUrl) ? (
+                      <video
+                        src={mediaUrl}
+                        muted
+                        loop
+                        autoPlay
+                        playsInline
+                        preload="metadata"
+                      />
+                    ) : (
+                      <img src={mediaUrl} alt={post.caption} loading="lazy" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </>
